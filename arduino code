@@ -1,0 +1,485 @@
+// Keypad - Version: Latest 
+
+#include <Key.h>
+
+
+// LiquidCrystal_I2C_Hangul - Version: Latest
+
+//#include <LiquidCrystal_I2C_Hangul.h>
+
+
+// Variable to store text message
+
+#include <Wire.h>
+
+#include <LiquidCrystal_I2C.h>
+
+#define trigPin 9       //to store to ultrasonic sensor
+
+#define echoPin 8       //receved signal store
+#define FIRE A1
+
+#define GAS A2
+
+LiquidCrystal_I2C lcd(0x27, 2, 1, 0, 4, 5, 6, 7, 3, POSITIVE);
+
+String textMessage;
+
+String MESSAGE;
+
+const int FAN = 13;     //set pin 13 set as FAN
+
+const int BULB = 12;    //set pin 12 set as BULB
+
+const int AC = 11;      //set pin 11 set as AC
+
+const int FRIDGE = 10;  //set pin 10 set as FRIDGE
+
+//INPUT TO SWITCH
+
+const int IN_FAN = 2;   //set as input pin of fan AS 2
+
+const int IN_BULB = 3;  //SET AS INPUT PIN OF BULB AS 3
+
+const int IN_AC = 4;    //SET AS INPUT PIN OF AC AS 4
+
+const int IN_FRIDGE = 5; //SET AS INPUT PIN OF FRIDGE IS 5
+
+const int ON = LOW;     //we set LOW is ON  we using low volt high output relay
+
+const int OFF = HIGH;   // we set OFF
+
+int duration, distance;   //ULTRASONIC SENSOR DURATION AND DISTANCE
+
+
+const int d_time = 0;   //wite time
+
+const int distime = 1000; //displaying time delay
+
+
+const int distance_of_user_and_switch = 20; //distince blw switch and user
+
+
+//ON OR OFF MESSAGE SAVER (message print data)
+
+String BULB_DATA;
+
+String FAN_DATA;
+
+String AC_DATA;
+
+String FRIDGE_DATA;
+
+//INPUT READ OF COMPONENTS (reed data in switch)
+
+int S_BULB;
+
+int S_FAN;
+
+int S_AC;
+
+int S_FRIDGE;
+
+boolean FAN_STATUS = false;
+
+boolean BULB_STATUS = false;
+
+boolean AC_STATUS = false;
+
+boolean FRIDGE_STATUS = false;
+
+void setup()
+
+{
+
+//display begin
+
+lcd.begin(20, 4); //using 20x4 display
+
+// Set divices as OUTPUT
+pinMode(FIRE, INPUT);
+  
+pinMode(GAS, INPUT);
+
+pinMode(FAN, OUTPUT);
+
+pinMode(BULB, OUTPUT);
+
+pinMode(AC, OUTPUT);
+
+pinMode(FRIDGE, OUTPUT);
+
+//SET INPUT PIN
+
+pinMode(IN_FAN, INPUT);
+
+pinMode(IN_AC, INPUT);
+
+pinMode(IN_BULB, INPUT);
+
+pinMode(IN_FRIDGE, INPUT);
+
+//ULTRASONIC SENSOR PINS
+
+pinMode(trigPin, OUTPUT);
+
+pinMode(echoPin, INPUT);
+
+// By default the divices is OFF
+
+digitalWrite(FAN, OFF);
+
+digitalWrite(BULB, OFF);
+
+digitalWrite(AC, OFF);
+
+digitalWrite(FRIDGE, OFF);
+
+// Initializing serial commmunication
+
+Serial.begin(19200); //arduino serial poart
+
+lcd.setCursor(2, 0);
+
+lcd.print("HOME  AUTOMATION");
+
+lcd.setCursor(5, 3);
+
+lcd.print("SCI-COPATH");
+
+for (int i = 0; i <= 40; i++)
+
+{
+
+lcd.setCursor(0, 2);
+
+lcd.print("                          ");
+
+lcd.setCursor(0, 2);
+
+delay(250);
+
+lcd.print("SERCHING SIGNEL....!");
+
+delay(250);
+
+}
+
+
+// AT command to set SIM900 to SMS mode
+
+Serial.println("AT+CMGF=1\r");
+
+lcd.clear();
+
+lcd.setCursor(5, 0);
+
+lcd.print("RECHED SIGNEL");
+
+delay(1000);
+
+lcd.clear();
+
+lcd.print("HOME AUTOMATION");
+
+}
+
+void send_sms(String acceessSts)
+
+{
+
+Serial.println("AT+CMGF=1");    //Sets the GSM Module in Text Mode
+
+delay(1000);  // Delay of 1000 milli seconds or 1 second
+
+Serial.println("AT+CMGS=\"+919447351985\"\r"); // Replace x with mobile number
+
+delay(1000);
+
+Serial.println(acceessSts);// The SMS text you want to send
+
+delay(100);
+
+Serial.println((char)26);// ASCII code of CTRL+Z
+
+delay(1000);
+
+}
+
+void loop() 
+{
+
+digitalWrite(trigPin, HIGH);
+
+delayMicroseconds(10);
+
+digitalWrite(trigPin, LOW);
+
+//USING ULTRASONIC SENSOR MESSIRING DISTANCE BETWEEN USER AND SWITCH
+
+duration = pulseIn(echoPin, HIGH);
+
+distance = (duration / 2) / 29.1;
+
+//serial print distanc
+
+Serial.print("DISTANCE  ");
+
+Serial.println(distance);
+
+//STORE DATAS OF SWITCH ITS CARRASPINDING VARIBLES
+
+S_BULB = digitalRead(IN_BULB);
+
+S_FAN = digitalRead(IN_FAN);
+
+S_AC = digitalRead(IN_AC);
+
+S_FRIDGE = digitalRead(IN_FRIDGE);
+
+device();
+
+lcdprint();
+    
+sefty();
+  
+}
+void sefty() 
+{
+static int d;
+if(digitalRead(GAS)==LOW)
+{
+lcd.setCutsor(0,0);
+lcd.print("Gas leake");
+}
+if(digitalRead(FIRE)==LOW)
+{
+lcd.setCutsor(0,0);
+lcd.print("FIRE DETECTED");
+d=1;
+send_sms("FIRE DETECTED");
+}
+else 
+d=0;
+}
+void device()//function of device working
+{
+if(Serial.available() > 0)
+{
+if(textMessage.indexOf("STATE") >= 0)
+{
+MESSAGE=FAN_DATA+"    "+BULB_DATA+"    "+AC_DATA+"    "+FRIDGE_DATA;
+Serial.println(MESSAGE);
+send_sms(MESSAGE);
+}
+} 
+if (distance <= distance_of_user_and_switch) //chicking user in fround of switch (Y/N);
+{
+if (S_BULB == 1)
+{
+digitalWrite(BULB, ON);
+BULB_DATA = "BULB ON";
+Serial.println("BULB ON");
+delay(50);
+}
+else
+{
+digitalWrite(BULB, OFF);
+BULB_DATA = "BULB OFF";
+Serial.println("BULB OFF");
+delay(50);
+}
+if (S_FAN == 1)
+{
+digitalWrite(FAN, ON);
+FAN_DATA = "FAN ON";
+Serial.println("FAN ON");
+delay(50)
+}
+else
+{
+digitalWrite(FAN, OFF);
+FAN_DATA = "FAN OFF";
+Serial.println("FAN OFF");
+delay(50);
+}
+if (S_AC == 1)
+{
+digitalWrite(AC, ON);
+AC_DATA = "AC ON";
+Serial.println("AC ON");
+delay(50);
+}
+else
+{
+digitalWrite(AC, OFF);
+AC_DATA = "AC OFF";
+Serial.println("AC OFF");
+delay(50);
+}
+if (S_FRIDGE == 1)
+{
+digitalWrite(FRIDGE, ON);
+FRIDGE_DATA = "FRIDGE ON";
+Serial.println("FRIDGE ON");
+delay(50);
+}
+else
+{
+digitalWrite(FRIDGE, OFF);
+FRIDGE_DATA = "FRIDGE OFF";
+Serial.println("FRIDGE OFF");
+delay(50);
+}
+}
+else if (Serial.available() > 0) 
+{
+textMessage = Serial.readString();
+textMessage.toUpperCase();
+delay(50);
+if (textMessage.indexOf("FANON") >= 0) 
+{
+// Turn on FAN
+digitalWrite(FAN, ON);
+textMessage = "";
+FAN_DATA = "FAN ON";
+Serial.println("FAN ON");
+delay(50);
+}
+else if(textMessage.indexOf("FANOFF") >= 0) 
+{
+//Turn off fan
+digitalWrite(FAN, OFF);
+textMessage = "";
+FAN_DATA = "FAN OFF";
+Serial.println("FAN OFF");
+delay(50);
+}
+else if (textMessage.indexOf("BULBON") >= 0) 
+{
+// Turn on bulb
+digitalWrite(BULB, ON);
+textMessage = "";
+BULB_DATA = "BULB ON";
+Serial.println("BULB ON");
+delay(50);
+}
+else if (textMessage.indexOf("BULBOFF") >= 0) 
+{
+// Turn off bulb
+digitalWrite(BULB, OFF);
+textMessage = "";
+BULB_DATA = "BULB OFF";
+Serial.println("BULB OFF");
+delay(50);
+}
+else if (textMessage.indexOf("ACON") >= 0) 
+{
+// Turn on ac
+digitalWrite(AC, ON);
+textMessage = "";
+AC_DATA = "AC ON";
+Serial.println("AC ON");
+delay(d_time);
+}
+else if (textMessage.indexOf("ACOFF") >= 0) 
+{
+// Turn off ac
+digitalWrite(AC, OFF);
+textMessage = "";
+AC_DATA = "AC OFF";
+Serial.println("AC OFF");
+delay(d_time);
+}
+else if (textMessage.indexOf("FRIDGEON") >= 0) "
+{
+ // Turn on fridge
+digitalWrite(FRIDGE, ON);
+textMessage = "";
+FRIDGE_DATA = "FRIDGE ON";
+Serial.println("FRIDGE ON");
+delay(d_time);
+}
+else if (textMessage.indexOf("FRIDGEOFF") >= 0) 
+{
+// Turn off fridge
+digitalWrite(FRIDGE, OFF);
+textMessage = "";
+FRIDGE_DATA = "FRIDGE OFF";
+Serial.println("FRIDGE OFF");
+delay(d_time);
+}
+else if (textMessage.indexOf("ALLON") >= 0) 
+{
+// Turn on all devices
+digitalWrite(FAN, ON);
+digitalWrite(AC, ON);
+digitalWrite(FRIDGE, ON);
+digitalWrite(BULB, ON);
+textMessage = "";
+Serial.println("ALL ON");
+FAN_DATA = "FAN ON";
+FRIDGE_DATA = "FRIDGE ON";
+AC_DATA = "AC ON";
+BULB_DATA = "BULB ON";
+delay(d_time);
+}
+else if (textMessage.indexOf("ALLOFF") >= 0) 
+{
+// Turn off all devices
+digitalWrite(FAN, OFF);
+digitalWrite(AC, OFF);
+digitalWrite(FRIDGE, OFF);
+digitalWrite(BULB, OFF);
+textMessage = "";
+Serial.println("ALL OFF");
+FAN_DATA = "FAN OFF";
+FRIDGE_DATA = "FRIDGE OFF";
+AC_DATA = "AC OFF";
+BULB_DATA = "BULB OFF";
+delay(d_time);
+}
+}
+}
+void lcdprint()
+{
+lcd.clear();
+lcd.print("HOME AUTOMATION");
+lcd.setCursor(0, 2);
+lcd.print(BULB_DATA);
+lcd.setCursor(10, 2);
+lcd.print(FAN_DATA);
+lcd.setCursor(0, 3);
+lcd.print(AC_DATA);
+lcd.setCursor(10, 3);
+#include <Key.h>
+// Turn off all devices
+digitalWrite(FAN, OFF);
+digitalWrite(AC, OFF);
+digitalWrite(FRIDGE, OFF);
+digitalWrite(BULB, OFF);
+textMessage = "";
+Serial.println("ALL OFF");
+FAN_DATA = "FAN OFF";
+FRIDGE_DATA = "FRIDGE OFF";
+AC_DATA = "AC OFF";
+BULB_DATA = "BULB OFF";
+delay(d_time);
+}
+}
+}
+void lcdprint()
+{
+lcd.clear();
+lcd.print("HOME AUTOMATION");
+lcd.setCursor(0, 2);
+lcd.print(BULB_DATA);
+lcd.setCursor(10, 2);
+lcd.print(FAN_DATA);
+lcd.setCursor(0, 3);
+lcd.print(AC_DATA);
+lcd.setCursor(10, 3);
+lcd.print(FRIDGE_DATA);
+delay(distime);
+lcd.print(FRIDGE_DATA);
+delay(distime);
